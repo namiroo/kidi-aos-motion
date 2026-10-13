@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex, nofollow">
+<title>모바일 AOS 모션 화면</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root{--ink:#1a1b20;--sub:#6b7284;--line:#e3e4e9;--bg:#f2f3f6;--brand:#0d61bf;--top:56px;--bottom:76px}
+  *{box-sizing:border-box;margin:0}
+  html,body{height:100%;background:var(--bg);color:var(--ink);overscroll-behavior:none}
+  body{font-family:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;
+    -webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;display:flex;flex-direction:column;height:100dvh;overflow:hidden}
+  header{height:calc(var(--top) + env(safe-area-inset-top));padding:env(safe-area-inset-top) 16px 0;display:flex;align-items:center;gap:10px;background:#fff;border-bottom:1px solid var(--line);flex:none}
+  header h1{font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  header .id{font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+  header .count{margin-left:auto;font-size:13px;color:var(--sub);font-variant-numeric:tabular-nums;flex:none}
+  .track{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .track::-webkit-scrollbar{display:none}
+  .slide{flex:0 0 100%;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:12px 16px}
+  .phone{position:relative;height:100%;max-width:100%;aspect-ratio:360/780;border-radius:20px;overflow:hidden;background:#fff center/cover no-repeat;
+    box-shadow:0 0 0 1px var(--line),0 8px 28px rgba(26,27,32,.08)}
+  .phone i{position:absolute;display:block;aspect-ratio:1;background-repeat:no-repeat}
+  footer{height:calc(var(--bottom) + env(safe-area-inset-bottom));padding:0 16px env(safe-area-inset-bottom);display:flex;align-items:center;gap:12px;background:#fff;border-top:1px solid var(--line);flex:none}
+  .dots{flex:1;display:flex;justify-content:center;gap:8px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#d0d3db;border:0;padding:0;cursor:pointer}
+  .dot.on{background:var(--brand);width:20px;border-radius:4px}
+  .btn{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;cursor:pointer;color:var(--ink);-webkit-tap-highlight-color:transparent}
+  .btn:disabled{opacity:.35}
+  .btn svg{width:22px;height:22px}
+  .btn.play{background:var(--brand);border-color:var(--brand);color:#fff}
+  .label{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);font-size:12px;color:#fff;background:rgba(26,27,32,.72);padding:4px 10px;border-radius:999px;white-space:nowrap;pointer-events:none}
+  .hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(26,27,32,.78);color:#fff;font-size:13px;padding:10px 14px;border-radius:10px;pointer-events:none;transition:opacity .4s;z-index:10;white-space:nowrap}
+  @media (max-width:600px){
+    header,footer{position:fixed;left:0;right:0;z-index:5;transition:opacity .25s,transform .25s;background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+    header{top:0} footer{bottom:0}
+    body.hide header{opacity:0;transform:translateY(-100%);pointer-events:none}
+    body.hide footer{opacity:0;transform:translateY(100%);pointer-events:none}
+    .slide{padding:0;background:#fff}
+    .phone{height:auto;width:100%;max-height:100dvh;border-radius:0;box-shadow:none}
+  }
+  @media (min-width:601px){.hint{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title"></h1><span class="id" id="sid"></span>
+  <span class="count" id="count"></span>
+</header>
+<div class="track" id="track"></div>
+<div class="hint" id="hint">좌우로 밀어 화면 이동 · 탭하면 메뉴</div>
+<footer>
+  <button class="btn" id="prev" aria-label="이전 화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button>
+  <div class="dots" id="dots"></div>
+  <button class="btn play" id="toggle" aria-label="일시정지"><svg viewBox="0 0 24 24" fill="currentColor" id="ticon"><rect x="7" y="5" width="3.2" height="14" rx="1"/><rect x="13.8" y="5" width="3.2" height="14" rx="1"/></svg></button>
+  <button class="btn" id="next" aria-label="다음 화면"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>
+</footer>
+<script>
+const DATA = {"icons": [{"id": "hourglass", "nameKo": "모래", "description": "인증 대기 — 모래시계가 뒤집히며 흐르는 대기 상태", "usedOn": ["UI_CM_05_014"], "spec": "icons/hourglass.json", "sprite": {"columns": 8, "rows": 6, "frameCount": 48, "src": "img/hourglass-sprite.webp"}, "screen": {"left": 25.0, "top": 25.64102564102564, "size": 50.0, "src": "img/hourglass-screen.webp"}, "timing": {"stepCount": 12, "delayMs": 120, "transitionMs": 120, "easing": "linear", "stepTotalMs": 240, "loopDurationMs": 2880, "loop": true, "framesPerStep": 4, "frameDurationsMs": [150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30], "continuous": false}}, {"id": "search-fail", "nameKo": "조회실패", "description": "조회 결과 없음 — 돋보기가 흔들리는 실패 상태", "usedOn": ["UI_CM_05_015"], "spec": "icons/search-fail.json", "sprite": {"columns": 8, "rows": 6, "frameCount": 48, "src": "img/search-fail-sprite.webp"}, "screen": {"left": 25.0, "top": 25.64102564102564, "size": 50.0, "src": "img/search-fail-screen.webp"}, "timing": {"stepCount": 12, "delayMs": 120, "transitionMs": 120, "easing": "linear", "stepTotalMs": 240, "loopDurationMs": 2880, "loop": true, "framesPerStep": 4, "frameDurationsMs": [150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30], "continuous": false}}, {"id": "lock", "nameKo": "잠금", "description": "계정 잠김 — 자물쇠가 떨어져 튀고 고리가 잠기는 동작", "usedOn": ["UI_CM_02_009"], "spec": "icons/lock.json", "sprite": {"columns": 8, "rows": 6, "frameCount": 48, "src": "img/lock-sprite.webp"}, "screen": {"left": 25.0, "top": 25.64102564102564, "size": 50.0, "src": "img/lock-screen.webp"}, "timing": {"stepCount": 12, "delayMs": 120, "transitionMs": 120, "easing": "linear", "stepTotalMs": 240, "loopDurationMs": 2880, "loop": true, "framesPerStep": 4, "frameDurationsMs": [150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30], "continuous": false}}, {"id": "account", "nameKo": "계정", "description": "휴면 계정 — 계정 오브가 떠올랐다 내려앉는 부유 루프", "usedOn": ["UI_CM_02_014"], "spec": "icons/account.json", "sprite": {"columns": 8, "rows": 6, "frameCount": 48, "src": "img/account-sprite.webp"}, "screen": {"left": 25.0, "top": 25.64102564102564, "size": 50.0, "src": "img/account-screen.webp"}, "timing": {"stepCount": 12, "delayMs": 120, "transitionMs": 120, "easing": "linear", "stepTotalMs": 240, "loopDurationMs": 2880, "loop": true, "framesPerStep": 4, "frameDurationsMs": [150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30], "continuous": false}}, {"id": "retry", "nameKo": "재시도", "description": "재시도 — 반동 후 튕겨 돌고 살짝 지나쳤다 안착하는 회전", "usedOn": ["UI_CM_02_015"], "spec": "icons/retry.json", "sprite": {"columns": 10, "rows": 6, "frameCount": 60, "src": "img/retry-sprite.webp"}, "screen": {"left": 25.0, "top": 25.64102564102564, "size": 50.0, "src": "img/retry-screen.webp"}, "timing": {"stepCount": 12, "delayMs": 1, "transitionMs": null, "transitionMsPerStep": [200, 200, 200, 200, 140, 140, 140, 140, 140, 140, 140, 140], "easing": "linear", "stepTotalMs": null, "loopDurationMs": 1920, "loop": true, "framesPerStep": 5, "frameDurationsMs": [40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 30, 30, 30, 30, 20, 30, 30, 30, 30, 20, 30, 30, 30, 30, 20, 30, 30, 30, 30, 20, 30, 30, 30, 30, 20, 30, 30, 30, 30, 20, 30, 30, 30, 30, 20, 30, 30, 30, 30, 20], "continuous": true, "rotationDegPerStep": [0, 0, 0, 0, 22, -62, -100, -100, -70, -40, -22, 12], "note": "반동(+22°) → 가속(-100°) → 감속 → 오버슛(-372°) → 안착(-360°). 낙하 200ms, 회전 140ms/스텝. GIF 저장 단위(10ms)에 맞춰 회전 구간은 30/30/30/30/20ms 로 나눕니다."}}, {"id": "complete", "nameKo": "완료", "description": "완료 — 체크가 튀어오르는 바운스", "usedOn": ["UI_CM_03_006"], "spec": "icons/complete.json", "sprite": {"columns": 8, "rows": 6, "frameCount": 48, "src": "img/complete-sprite.webp"}, "screen": {"left": 25.0, "top": 20.897435897435898, "size": 50.0, "src": "img/complete-screen.webp"}, "timing": {"stepCount": 12, "delayMs": 120, "transitionMs": 120, "easing": "linear", "stepTotalMs": 240, "loopDurationMs": 2880, "loop": true, "framesPerStep": 4, "frameDurationsMs": [150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30, 150, 30, 30, 30], "continuous": false}}]};
+const track=document.getElementById('track'), dots=document.getElementById('dots');
+const players=[]; let playing=true, cur=0;
+function bgPos(S,i){const c=i%S.columns,r=Math.floor(i/S.columns);
+  return (S.columns>1?c/(S.columns-1)*100:0)+'% '+(S.rows>1?r/(S.rows-1)*100:0)+'%';}
+DATA.icons.forEach((ic,k)=>{
+  const S=ic.sprite, sc=ic.screen;
+  const slide=document.createElement('section'); slide.className='slide';
+  slide.innerHTML='<div class="phone" role="img" aria-label="'+ic.usedOn[0]+' '+ic.nameKo+' 화면"><i></i></div>';
+  const phone=slide.querySelector('.phone'), ico=slide.querySelector('i');
+  phone.style.backgroundImage='url("'+sc.src+'")';
+  Object.assign(ico.style,{left:sc.left+'%',top:sc.top+'%',width:sc.size+'%',
+    backgroundImage:'url("'+S.src+'")',backgroundSize:(S.columns*100)+'% '+(S.rows*100)+'%'});
+  track.appendChild(slide);
+  const d=document.createElement('button'); d.className='dot'; d.setAttribute('aria-label',(k+1)+'번 화면');
+  d.onclick=()=>go(k); dots.appendChild(d);
+  players.push({S,T:ic.timing,el:ico,i:0,timer:null});
+});
+function tick(p){p.el.style.backgroundPosition=bgPos(p.S,p.i);
+  p.timer=setTimeout(()=>{p.i=(p.i+1)%p.S.frameCount; if(playing) tick(p);},p.T.frameDurationsMs[p.i]);}
+function startAll(){players.forEach(p=>{clearTimeout(p.timer);tick(p);});}
+function stopAll(){players.forEach(p=>clearTimeout(p.timer));}
+function render(){const ic=DATA.icons[cur];
+  document.getElementById('title').textContent=ic.nameKo+' · '+ic.description.split(' — ')[0];
+  document.getElementById('sid').textContent=ic.usedOn[0];
+  document.getElementById('count').textContent=(cur+1)+' / '+DATA.icons.length;
+  [...dots.children].forEach((d,i)=>d.classList.toggle('on',i===cur));
+  document.getElementById('prev').disabled=cur===0;
+  document.getElementById('next').disabled=cur===DATA.icons.length-1;}
+function go(k){track.scrollTo({left:k*track.clientWidth,behavior:'smooth'});}
+track.addEventListener('scroll',()=>{const k=Math.round(track.scrollLeft/track.clientWidth); if(k!==cur){cur=k;render();}},{passive:true});
+document.getElementById('prev').onclick=()=>go(Math.max(0,cur-1));
+document.getElementById('next').onclick=()=>go(Math.min(DATA.icons.length-1,cur+1));
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight')go(Math.min(DATA.icons.length-1,cur+1)); if(e.key==='ArrowLeft')go(Math.max(0,cur-1));});
+const toggle=document.getElementById('toggle'), ticon=document.getElementById('ticon');
+toggle.onclick=()=>{playing=!playing;
+  ticon.innerHTML=playing?'<rect x="7" y="5" width="3.2" height="14" rx="1"/><rect x="13.8" y="5" width="3.2" height="14" rx="1"/>':'<path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/>';
+  toggle.setAttribute('aria-label',playing?'일시정지':'재생');
+  playing?startAll():stopAll();};
+const mobile=matchMedia('(max-width:600px)'); let hideT;
+function showChrome(){document.body.classList.remove('hide'); clearTimeout(hideT); if(mobile.matches) hideT=setTimeout(()=>document.body.classList.add('hide'),2500);}
+track.addEventListener('click',()=>{ if(!mobile.matches) return; document.body.classList.contains('hide')?showChrome():(clearTimeout(hideT),document.body.classList.add('hide')); });
+document.querySelectorAll('footer button').forEach(b=>b.addEventListener('click',showChrome));
+setTimeout(()=>{document.getElementById('hint').style.opacity=0;},2200);
+render(); startAll(); showChrome();
+</script>
+</body>
+</html>
